@@ -72,9 +72,15 @@ function App() {
         <div style={{ background: 'var(--accent-blue)', padding: '0.75rem', borderRadius: '12px', display: 'flex', alignItems: 'center' }}>
           <Activity color="white" size={24} />
         </div>
-        <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0, letterSpacing: '-0.025em' }}>City Assessment Finder</h1>
-          <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.875rem' }}>High-performance bulk matching engine</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0, letterSpacing: '-0.025em' }}>City Assessment Finder</h1>
+            <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.875rem' }}>High-performance bulk matching engine</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(34, 197, 94, 0.1)', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid rgba(34, 197, 94, 0.2)' }}>
+             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }}></div>
+             <span style={{ fontSize: '0.75rem', color: '#22c55e', fontWeight: 600 }}>System Online & Ready</span>
+          </div>
         </div>
       </header>
 
