@@ -11,17 +11,15 @@ function getBaseCity(cityNorm) {
 }
 
 function getAllVariations(cityStr) {
-  // 🚨 SAFETY: DO NOT GENERATE VARIATIONS FOR BLOCKED INPUT
-  const check = cityStr
-    ?.toLowerCase()
-    ?.replace(/[\s\t\n\r._-]+/g, '');
+  const raw = cityStr || '';
 
   if (
-    check?.includes('county') ||
-    check?.includes('borough') ||
-    check?.includes('parish')
+    /\b(county|borough|parish)\b/i.test(raw) ||
+    raw.toLowerCase().replace(/\s+/g, '').includes('county') ||
+    raw.toLowerCase().replace(/\s+/g, '').includes('borough') ||
+    raw.toLowerCase().replace(/\s+/g, '').includes('parish')
   ) {
-    return []; // 🚫 NO variations → NO matching possible
+    return []; // 🚫 NO VARIATIONS
   }
 
   if (!cityStr) return [];
@@ -47,14 +45,12 @@ function getAllVariations(cityStr) {
     let raw = part.toLowerCase().replace(/-/g, ' ');
     let compExact = raw.replace(/\s+/g, '');
     
-    // Clean rules: remove county/borough/parish
     let cleanTokens = raw.split(/\s+/).filter(Boolean);
-    let cleanTokensFiltered = cleanTokens.filter(t => !['county', 'borough', 'parish'].includes(t));
-    let cleanComp = cleanTokensFiltered.join('');
+    let cleanComp = cleanTokens.join('');
     
     // Prefix rules: remove allowed prefixes
     const ALLOWED_PREFIXES = ['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest', 'new', 'old'];
-    let baseTokens = [...cleanTokensFiltered];
+    let baseTokens = [...cleanTokens];
     if (baseTokens.length > 1 && ALLOWED_PREFIXES.includes(baseTokens[0])) {
       baseTokens.shift(); // remove prefix
     }
@@ -99,25 +95,22 @@ export function matchCities(inputData, excelDataRows) {
         const cityPart = parts[0] || '';
         const statePart = parts[1] || '';
 
-        // ==========================================
-        // 🔴 HARD BLOCK (ABSOLUTE STOP)
-        // ==========================================
-        const blockCheck = (cityPart || '')
-          .toLowerCase()
-          .replace(/[\s\t\n\r._-]+/g, '');
-        
-        if (
-          blockCheck.includes('county') ||
-          blockCheck.includes('borough') ||
-          blockCheck.includes('parish')
-        ) {
+        const rawCityInput = cityPart || '';
+
+        // STRICT check on ORIGINAL input (NOT normalized)
+        const containsBlockedWord = /\b(county|borough|parish)\b/i.test(rawCityInput) ||
+          rawCityInput.toLowerCase().replace(/\s+/g, '').includes('county') ||
+          rawCityInput.toLowerCase().replace(/\s+/g, '').includes('borough') ||
+          rawCityInput.toLowerCase().replace(/\s+/g, '').includes('parish');
+
+        if (containsBlockedWord) {
           return {
             ...input,
             status: 'Not Found',
             rate: '-',
-            city: cityPart,
+            city: rawCityInput,
             state: statePart,
-            metaMatchStrategy: 'Blocked (County/Borough/Parish)',
+            metaMatchStrategy: 'Blocked (Invalid City Type)',
             isBlocked: true
           };
         }

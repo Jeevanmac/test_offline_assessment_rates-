@@ -2,8 +2,6 @@
  * Normalizes strings according to the defined specifications.
  */
 
-const REMOVE_WORDS = ['county', 'parish', 'borough'];
-
 const STATE_MAP = {
   'al': 'alabama', 'ak': 'alaska', 'az': 'arizona', 'ar': 'arkansas', 'ca': 'california',
   'co': 'colorado', 'ct': 'connecticut', 'de': 'delaware', 'fl': 'florida', 'ga': 'georgia',
@@ -24,24 +22,19 @@ const STATE_MAP = {
  * 1. Lowercase everything
  * 2. Trim spaces (done via tokenization)
  * 3. Replace hyphens with space
- * 4. Remove ONLY: county, parish, borough
  */
 export function normalizeCity(str) {
   if (!str) return '';
-  
-  // 1. Lowercase
+
   let normalized = str.toLowerCase();
-  
-  // 3. Replace hyphens with spaces
+
+  // Only replace hyphens → space
   normalized = normalized.replace(/-/g, ' ');
-  
-  // Tokenize by spaces, which inherently trims and normalizes inner spaces (rule 2)
+
+  // normalize spacing
   let tokens = normalized.split(/\s+/).filter(Boolean);
-  
-  // 4. Remove ONLY these words
-  const finalTokens = tokens.filter(token => !REMOVE_WORDS.includes(token));
-  
-  return finalTokens.join(' ');
+
+  return tokens.join(' ');
 }
 
 export function compressCity(str) {
