@@ -1,0 +1,79 @@
+/**
+ * Normalizes strings according to the defined specifications.
+ */
+
+const REMOVE_WORDS = ['county', 'city', 'parish', 'borough'];
+
+const STATE_MAP = {
+  'al': 'alabama', 'ak': 'alaska', 'az': 'arizona', 'ar': 'arkansas', 'ca': 'california',
+  'co': 'colorado', 'ct': 'connecticut', 'de': 'delaware', 'fl': 'florida', 'ga': 'georgia',
+  'hi': 'hawaii', 'id': 'idaho', 'il': 'illinois', 'in': 'indiana', 'ia': 'iowa',
+  'ks': 'kansas', 'ky': 'kentucky', 'la': 'louisiana', 'me': 'maine', 'md': 'maryland',
+  'ma': 'massachusetts', 'mi': 'michigan', 'mn': 'minnesota', 'ms': 'mississippi', 'mo': 'missouri',
+  'mt': 'montana', 'ne': 'nebraska', 'nv': 'nevada', 'nh': 'new hampshire', 'nj': 'new jersey',
+  'nm': 'new mexico', 'ny': 'new york', 'nc': 'north carolina', 'nd': 'north dakota',
+  'oh': 'ohio', 'ok': 'oklahoma', 'or': 'oregon', 'pa': 'pennsylvania', 'ri': 'rhode island',
+  'sc': 'south carolina', 'sd': 'south dakota', 'tn': 'tennessee', 'tx': 'texas', 'ut': 'utah',
+  'vt': 'vermont', 'va': 'virginia', 'wa': 'washington', 'wv': 'west virginia', 'wi': 'wisconsin',
+  'wy': 'wyoming', 'dc': 'district of columbia'
+};
+
+/**
+ * Main normalization function for city strings
+ * ONLY apply:
+ * 1. Lowercase everything
+ * 2. Trim spaces (done via tokenization)
+ * 3. Replace hyphens with space
+ * 4. Remove ONLY: county, city, parish, borough
+ */
+export function normalizeCity(str) {
+  if (!str) return '';
+  
+  // 1. Lowercase
+  let normalized = str.toLowerCase();
+  
+  // 3. Replace hyphens with spaces
+  normalized = normalized.replace(/-/g, ' ');
+  
+  // Tokenize by spaces, which inherently trims and normalizes inner spaces (rule 2)
+  let tokens = normalized.split(/\s+/).filter(Boolean);
+  
+  // 4. Remove ONLY these words
+  const finalTokens = tokens.filter(token => !REMOVE_WORDS.includes(token));
+  
+  return finalTokens.join(' ');
+}
+
+export function compressCity(str) {
+  if (!str) return '';
+  return str.replace(/\s+/g, '');
+}
+
+export function normalizeState(str) {
+  if (!str) return '';
+  let normalized = str.toLowerCase().trim();
+  // State might be "OH" or "Ohio"
+  if (STATE_MAP[normalized]) {
+    // If it's short, convert to full name for consistent matching if excel has full names
+    // Actually wait, let's keep it normalized. Let's return the abbreviation always, or full name always.
+    // The requirement says:
+    // Support full name <-> abbreviation mapping.
+    // Let's normalize everything to lowercased abbreviation if possible, or full name.
+    // We will return lowercased abbreviation string.
+  }
+  
+  // Reverse lookup: if they typed "ohio", return "oh"
+  for (const [abbr, full] of Object.entries(STATE_MAP)) {
+    if (normalized === full) {
+      return abbr;
+    }
+  }
+  
+  // Otherwise, if it's already a 2-char code or something unrecognized, return as is.
+  return normalized;
+}
+
+export function getStateAbbr(str) {
+  const norm = normalizeState(str);
+  return norm; 
+}
