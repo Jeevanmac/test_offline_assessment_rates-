@@ -209,7 +209,7 @@ export default function ResultsTable({ results }) {
                   </button>
                 </td>
               </tr>
-            ))}
+            )})}
             {filteredResults.length === 0 && (
               <tr>
                 <td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
