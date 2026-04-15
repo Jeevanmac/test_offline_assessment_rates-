@@ -65,6 +65,7 @@ export async function parseExcel(file) {
             originalCity: cityRawStr,
             cityNorm: normalizeCity(String(cityRawStr)),
             cityCompressed: normalizeCity(String(cityRawStr)).replace(/\s+/g, ''),
+            originalAlias: aliasRawStr,
             aliasNorm: normalizeCity(String(aliasRawStr)),
             aliasCompressed: normalizeCity(String(aliasRawStr)).replace(/\s+/g, ''),
             rateStr: rateValue,

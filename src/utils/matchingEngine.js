@@ -1,17 +1,60 @@
 import { normalizeCity, getStateAbbr } from './normalize';
 
-/**
- * Executes matching engine rules against normalized inputs.
- */
-const ALLOWED_PREFIXES = ['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest', 'new', 'old'];
-
 function getBaseCity(cityNorm) {
   if (!cityNorm) return '';
+  const ALLOWED_PREFIXES = ['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest', 'new', 'old'];
   const tokens = cityNorm.split(/\s+/);
   if (tokens.length > 1 && ALLOWED_PREFIXES.includes(tokens[0])) {
     return tokens.slice(1).join(' ');
   }
   return cityNorm;
+}
+
+function getAllVariations(cityStr) {
+  if (!cityStr) return [];
+  // 1. Bracket Handling
+  const parts = [];
+  if (cityStr.includes('(') && cityStr.includes(')')) {
+    const insideMatch = cityStr.match(/\(([^)]+)\)/);
+    if (insideMatch) {
+       parts.push(insideMatch[1].trim());
+       parts.push(cityStr.replace(/\([^)]+\)/g, '').trim());
+    } else {
+       parts.push(cityStr.trim());
+    }
+  } else {
+    parts.push(cityStr.trim());
+  }
+
+  const variations = [];
+  parts.forEach(part => {
+    if (!part) return;
+    
+    // Normalization rules: lowercase, replace hyphen
+    let raw = part.toLowerCase().replace(/-/g, ' ');
+    let compExact = raw.replace(/\s+/g, '');
+    
+    // Clean rules: remove county/borough/parish
+    let cleanTokens = raw.split(/\s+/).filter(Boolean);
+    let cleanTokensFiltered = cleanTokens.filter(t => !['county', 'borough', 'parish'].includes(t));
+    let cleanComp = cleanTokensFiltered.join('');
+    
+    // Prefix rules: remove allowed prefixes
+    const ALLOWED_PREFIXES = ['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest', 'new', 'old'];
+    let baseTokens = [...cleanTokensFiltered];
+    if (baseTokens.length > 1 && ALLOWED_PREFIXES.includes(baseTokens[0])) {
+      baseTokens.shift(); // remove prefix
+    }
+    let baseComp = baseTokens.join('');
+    
+    variations.push({
+      exactComp: compExact,
+      cleanComp: cleanComp,
+      baseComp: baseComp
+    });
+  });
+  
+  return variations;
 }
 
 export function matchCities(inputData, excelDataRows) {
@@ -45,13 +88,6 @@ export function matchCities(inputData, excelDataRows) {
     const statePart = parts[1];
 
     const inputStateAbbr = getStateAbbr(statePart);
-    const inputCityNorm = normalizeCity(cityPart);
-    const inputCityBase = getBaseCity(inputCityNorm);
-    
-    // Compressed forms for spacing checks
-    const inputRawCompressed = cityPart.toLowerCase().trim().replace(/\s+/g, '');
-    const inputCityCompressed = inputCityNorm.replace(/\s+/g, '');
-    const inputCityBaseCompressed = inputCityBase.replace(/\s+/g, '');
 
     // If state has no entries
     if (!stateToCitiesMap[inputStateAbbr]) {
@@ -65,56 +101,84 @@ export function matchCities(inputData, excelDataRows) {
     }
 
     const targetList = stateToCitiesMap[inputStateAbbr];
-    let bestMatch = null;
-    let matchType = 4; // Lower is better. 1: Exact, 2: Clean, 3: Prefix Match
-    let maxRate = -1;
+    const inputVariations = getAllVariations(cityPart);
+    let allMatches = [];
 
     for (let i = 0; i < targetList.length; i++) {
         const row = targetList[i];
+        const rowVariations = getAllVariations(String(row.originalCity || ''));
         
-        const rowRawCompressed = (row.originalCity || '').toLowerCase().trim().replace(/\s+/g, '');
-        const rowCityBaseCompressed = getBaseCity(row.cityNorm).replace(/\s+/g, '');
-        
-        let currentMatchType = 0;
-        
-        // 1. Exact Match (Raw compressed comparison)
-        if (rowRawCompressed === inputRawCompressed) {
-            currentMatchType = 1;
-        } 
-        // 2. Clean Match (after strict normalizing removes)
-        else if (row.cityCompressed === inputCityCompressed || (row.aliasCompressed && row.aliasCompressed === inputCityCompressed)) {
-            currentMatchType = 2;
-        }
-        // 3. Prefix Match (after strict prefix removes)
-        else if (
-            inputCityBaseCompressed === row.cityCompressed || 
-            inputCityCompressed === rowCityBaseCompressed ||
-            (inputCityBaseCompressed !== inputCityCompressed && rowCityBaseCompressed !== row.cityCompressed && inputCityBaseCompressed === rowCityBaseCompressed) || 
-            (row.aliasCompressed && getBaseCity(row.aliasNorm).replace(/\s+/g, '') === inputCityBaseCompressed)
-        ) {
-            currentMatchType = 3;
+        let isMatch = false;
+        let strat = '';
+
+        for (const iVar of inputVariations) {
+            for (const rVar of rowVariations) {
+                // 1. Exact Match
+                if (iVar.exactComp === rVar.exactComp && iVar.exactComp !== '') {
+                    isMatch = true; strat = 'Exact'; break;
+                }
+                
+                // 3. Prefix Match
+                // "Remove prefix and compare again"
+                if ((iVar.baseComp === rVar.cleanComp || iVar.cleanComp === rVar.baseComp) && iVar.baseComp !== '') {
+                    isMatch = true; strat = 'Prefix Match'; break;
+                }
+
+                // 4. Clean Match
+                if (iVar.cleanComp === rVar.cleanComp && iVar.cleanComp !== '') {
+                    isMatch = true; strat = 'Clean Match'; break;
+                }
+            }
+            if (isMatch) break;
         }
 
-        if (currentMatchType > 0) {
-            // Pick based on priority
-            // If matchType is smaller (better priority), or same priority with higher rate
-            if (currentMatchType < matchType || (currentMatchType === matchType && row.rateFloat > maxRate)) {
-                bestMatch = row;
-                matchType = currentMatchType;
-                maxRate = row.rateFloat;
+        // Handle alias if it didn't match the primary city
+        if (!isMatch && row.originalAlias) {
+            const aliasVariations = getAllVariations(String(row.originalAlias));
+            for (const iVar of inputVariations) {
+                for (const aVar of aliasVariations) {
+                    if (iVar.exactComp === aVar.exactComp && iVar.exactComp !== '') {
+                        isMatch = true; strat = 'Exact (Alias)'; break;
+                    }
+                    if ((iVar.baseComp === aVar.cleanComp || iVar.cleanComp === aVar.baseComp) && iVar.baseComp !== '') {
+                        isMatch = true; strat = 'Prefix Match (Alias)'; break;
+                    }
+                    if (iVar.cleanComp === aVar.cleanComp && iVar.cleanComp !== '') {
+                        isMatch = true; strat = 'Clean Match (Alias)'; break;
+                    }
+                }
+                if (isMatch) break;
             }
+        } else if (!isMatch && row.aliasCompressed) {
+            // fallback if we just have aliasCompressed without originalAlias
+            for (const iVar of inputVariations) {
+               if (iVar.cleanComp === row.aliasCompressed && iVar.cleanComp !== '') {
+                   isMatch = true; strat = 'Clean Match (Alias)'; break;
+               }
+            }
+        }
+
+        if (isMatch) {
+            allMatches.push({ row, strat });
         }
     }
 
-    if (bestMatch) {
-      return {
-        ...input,
-        status: 'Found',
-        rate: bestMatch.rateStr,
-        city: cityPart,
-        state: statePart,
-        metaMatchStrategy: matchType === 1 ? 'Exact' : matchType === 2 ? 'Clean' : 'Prefix Match'
-      };
+    if (allMatches.length > 0) {
+        let bestMatch = allMatches[0];
+        for (let m = 1; m < allMatches.length; m++) {
+           if (allMatches[m].row.rateFloat > bestMatch.row.rateFloat) {
+               bestMatch = allMatches[m];
+           }
+        }
+
+        return {
+            ...input,
+            status: 'Found',
+            rate: bestMatch.row.rateStr,
+            city: cityPart,
+            state: statePart,
+            metaMatchStrategy: bestMatch.strat
+        };
     }
 
     return {

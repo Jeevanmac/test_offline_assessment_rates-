@@ -2,7 +2,7 @@
  * Normalizes strings according to the defined specifications.
  */
 
-const REMOVE_WORDS = ['county', 'city', 'parish', 'borough'];
+const REMOVE_WORDS = ['county', 'parish', 'borough'];
 
 const STATE_MAP = {
   'al': 'alabama', 'ak': 'alaska', 'az': 'arizona', 'ar': 'arkansas', 'ca': 'california',
@@ -24,7 +24,7 @@ const STATE_MAP = {
  * 1. Lowercase everything
  * 2. Trim spaces (done via tokenization)
  * 3. Replace hyphens with space
- * 4. Remove ONLY: county, city, parish, borough
+ * 4. Remove ONLY: county, parish, borough
  */
 export function normalizeCity(str) {
   if (!str) return '';
