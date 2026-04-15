@@ -1,5 +1,19 @@
 import { normalizeCity, getStateAbbr } from './normalize';
 
+function isStrictBlockedCity(cityPart) {
+  if (!cityPart) return false;
+
+  const normalized = cityPart
+    .toLowerCase()
+    .replace(/[\s\t\n\r._-]+/g, ''); // remove ALL separators
+
+  return (
+    normalized.includes('county') ||
+    normalized.includes('borough') ||
+    normalized.includes('parish')
+  );
+}
+
 function getBaseCity(cityNorm) {
   if (!cityNorm) return '';
   const ALLOWED_PREFIXES = ['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest', 'new', 'old'];
@@ -11,6 +25,19 @@ function getBaseCity(cityNorm) {
 }
 
 function getAllVariations(cityStr) {
+  // 🚨 SAFETY: DO NOT GENERATE VARIATIONS FOR BLOCKED INPUT
+  const blockedCheck = cityStr
+    ?.toLowerCase()
+    ?.replace(/[\s\t\n\r._-]+/g, '');
+
+  if (
+    blockedCheck?.includes('county') ||
+    blockedCheck?.includes('borough') ||
+    blockedCheck?.includes('parish')
+  ) {
+    return []; // NO variations → NO matching possible
+  }
+
   if (!cityStr) return [];
   // 1. Bracket Handling
   const parts = [];
@@ -86,30 +113,15 @@ export function matchCities(inputData, excelDataRows) {
         const cityPart = parts[0] || '';
         const statePart = parts[1] || '';
 
-        // ==========================================
-        // 🔴 STRICT BLOCK RULE (FINAL - BULLETPROOF)
-        // ==========================================
-
-        // Normalize city by removing ALL separators
-        const normalizedCity = (cityPart || '')
-          .toLowerCase()
-          .replace(/[\s\t\n\r._-]+/g, ''); // remove spaces, dots, hyphens, underscores
-
-        // Strict block check
-        const isBlocked =
-          normalizedCity.includes('county') ||
-          normalizedCity.includes('borough') ||
-          normalizedCity.includes('parish');
-
-        // If blocked → STOP immediately (DO NOT MATCH)
-        if (isBlocked) {
+        // 🔴 HARD BLOCK — DO NOT PROCEED TO MATCHING
+        if (isStrictBlockedCity(cityPart)) {
           return {
             ...input,
             status: 'Not Found',
             rate: '-',
             city: cityPart || '-',
             state: statePart || '-',
-            metaMatchStrategy: 'Strict Block (County/Borough/Parish)',
+            metaMatchStrategy: 'Blocked (Contains County/Borough/Parish)',
             isBlocked: true
           };
         }
