@@ -8,16 +8,14 @@ const ALLOWED_KEYWORDS = [
 ];
 
 /**
- * Robust detection of admin keywords in RAW input.
- * Must detect: case insensitive, with or without spaces (e.g. "warrencounty")
+ * Robust detection of admin keywords (county, borough, parish)
  */
 function isSpecialAdminWord(cityStr) {
   if (!cityStr) return false;
   const lower = cityStr.toLowerCase().trim();
-  const compressed = lower.replace(/[\s\t\n\r._-]+/g, '');
+  const compressed = lower.replace(/[\s\t\n\r._-]+/g, ''); 
   
   return ADMIN_WORDS.some(word => {
-    // Check for exact word with boundaries OR compressed substring
     const wordRegex = new RegExp(`\\b${word}\\b`, 'i');
     return wordRegex.test(lower) || compressed.includes(word);
   });
@@ -25,7 +23,6 @@ function isSpecialAdminWord(cityStr) {
 
 function getAllVariations(cityStr) {
   if (!cityStr) return [];
-  
   // 1. Bracket Handling
   const parts = [];
   if (cityStr.includes('(') && cityStr.includes(')')) {
@@ -44,14 +41,14 @@ function getAllVariations(cityStr) {
   parts.forEach(part => {
     if (!part) return;
     
-    // Normalization: lowercase + replace hyphen ONLY
+    // Normalization rules: lowercase, replace hyphen
     let raw = part.toLowerCase().replace(/-/g, ' ');
     let compExact = raw.replace(/\s+/g, '');
     
     let cleanTokens = raw.split(/\s+/).filter(Boolean);
     let cleanComp = cleanTokens.join('');
     
-    // Prefix/Suffix rules: remove ONLY the specific allowed keywords
+    // Prefix/Suffix rules: remove ONLY specific keywords
     let baseTokens = [...cleanTokens];
     
     // Strip from start
@@ -76,7 +73,7 @@ function getAllVariations(cityStr) {
 }
 
 export function matchCities(inputData, excelDataRows) {
-  // 1. Pre-fetch target list by state
+  // 1. Build optimized lookup
   const stateToCitiesMap = {};
   excelDataRows.forEach(row => {
     if (!row.stateAbbr) return;
@@ -86,153 +83,154 @@ export function matchCities(inputData, excelDataRows) {
     stateToCitiesMap[row.stateAbbr].push(row);
   });
 
-  return inputData.map(input => {
-    const rawLine = input.raw || '';
-    const parts = rawLine.split(',').map(s => s.trim());
-    const cityPart = parts[0] || '';
-    const statePart = parts[1] || '';
+    // 2. Process inputs
+    return inputData.map(input => {
+        const rawLine = input.raw || '';
+        const parts = rawLine.split(',').map(s => s.trim());
+        const cityPart = parts[0] || '';
+        const statePart = parts[1] || '';
 
-    // ==========================================
-    // 🚨 STEP 1: ADMIN WORD GATEWAY (HARD BLOCK)
-    // ==========================================
-    // Must use RAW cityPart before ANY normalization
-    if (isSpecialAdminWord(cityPart)) {
-      console.log("ADMIN BLOCK TRIGGERED:", cityPart);
-      
-      const inputStateAbbr = getStateAbbr(statePart);
-      const targetList = stateToCitiesMap[inputStateAbbr] || [];
-      
-      // RUN ONLY EXACT MATCH (Lowercase + Trim ONLY)
-      // DO NOT call normalizeCity()
-      const rawSearch = cityPart.toLowerCase().trim();
-      let bestMatch = null;
+        // ==========================================
+        // 🔴 STEP 1: ADMIN GATEWAY (HARD RETURN)
+        // ==========================================
+        // Uses RAW cityPart. STRICT exact match only. 
+        // No normalization. No variations.
+        if (isSpecialAdminWord(cityPart)) {
+            const inputStateAbbr = getStateAbbr(statePart);
+            const targetList = stateToCitiesMap[inputStateAbbr] || [];
+            
+            const rawSearch = cityPart.toLowerCase().trim();
+            let exactMatch = null;
 
-      for (const row of targetList) {
-        const rowOriginal = (row.originalCity || '').toLowerCase().trim();
-        if (rowOriginal === rawSearch) {
-          if (!bestMatch || row.rateFloat > bestMatch.rateFloat) {
-            bestMatch = row;
-          }
-        }
-      }
-
-      // SHORT-CIRCUIT: STOP execution completely
-      if (bestMatch) {
-        return {
-          ...input,
-          status: 'Found',
-          rate: bestMatch.rateStr,
-          city: cityPart,
-          state: statePart,
-          metaMatchStrategy: 'Exact (Admin Gateway)'
-        };
-      }
-
-      return {
-        ...input,
-        status: 'Not Found',
-        rate: '-',
-        city: cityPart,
-        state: statePart,
-        metaMatchStrategy: 'Rejected (Admin Gateway Stop)'
-      };
-    }
-
-    // ==========================================
-    // 🔵 STEP 2: NORMAL FLOW (NO ADMIN WORD)
-    // ==========================================
-    console.log("NORMAL MATCH FLOW:", cityPart);
-
-    // Validation
-    const commaCount = (rawLine.match(/,/g) || []).length;
-    const isValidFormat = (commaCount === 1 && parts.length === 2 && parts[0].length > 0 && parts[1].length > 0 && !rawLine.includes('.'));
-    if (!isValidFormat) {
-      return { ...input, city: '-', state: '-', status: 'Invalid Format', rate: '-', metaMatchStrategy: 'Invalid Format' };
-    }
-
-    const inputStateAbbr = getStateAbbr(statePart);
-    const targetList = stateToCitiesMap[inputStateAbbr] || [];
-    
-    const inputVariations = getAllVariations(cityPart);
-    let allMatches = [];
-
-    for (const row of targetList) {
-      const rowOrig = String(row.originalCity || '');
-      
-      // Safety: Never match a normal input against an Admin database record
-      if (isSpecialAdminWord(rowOrig)) continue;
-
-      const rowVariations = getAllVariations(rowOrig);
-      let isMatch = false;
-      let strat = '';
-
-      for (const iVar of inputVariations) {
-        for (const rVar of rowVariations) {
-          if (iVar.exactComp === rVar.exactComp && iVar.exactComp !== '') {
-            isMatch = true; strat = 'Exact'; break;
-          }
-          if ((iVar.baseComp === rVar.cleanComp || iVar.cleanComp === rVar.baseComp) && iVar.baseComp !== '') {
-            isMatch = true; strat = 'Prefix Match'; break;
-          }
-          if (iVar.cleanComp === rVar.cleanComp && iVar.cleanComp !== '') {
-            isMatch = true; strat = 'Clean Match'; break;
-          }
-        }
-        if (isMatch) break;
-      }
-
-      // Alias Matching
-      if (!isMatch && row.originalAlias) {
-        if (!isSpecialAdminWord(String(row.originalAlias))) {
-          const aliasVariations = getAllVariations(String(row.originalAlias));
-          for (const iVar of inputVariations) {
-            for (const aVar of aliasVariations) {
-              if (iVar.exactComp === aVar.exactComp && iVar.exactComp !== '') {
-                isMatch = true; strat = 'Exact (Alias)'; break;
-              }
-              if ((iVar.baseComp === aVar.cleanComp || iVar.cleanComp === aVar.baseComp) && iVar.baseComp !== '') {
-                isMatch = true; strat = 'Prefix Match (Alias)'; break;
-              }
-              if (iVar.cleanComp === aVar.cleanComp && iVar.cleanComp !== '') {
-                isMatch = true; strat = 'Clean Match (Alias)'; break;
-              }
+            for (const row of targetList) {
+                const targetOrig = (row.originalCity || '').toLowerCase().trim();
+                if (targetOrig === rawSearch) {
+                    if (!exactMatch || row.rateFloat > exactMatch.rateFloat) {
+                        exactMatch = row;
+                    }
+                }
             }
-            if (isMatch) break;
-          }
+
+            if (exactMatch) {
+                return {
+                    ...input,
+                    status: 'Found',
+                    rate: exactMatch.rateStr,
+                    city: cityPart,
+                    state: statePart,
+                    metaMatchStrategy: 'Exact (Admin Gateway)'
+                };
+            }
+
+            // HARD RETURN: Execution stops here for input containing admin words
+            return {
+                ...input,
+                status: 'Not Found',
+                rate: '-',
+                city: cityPart,
+                state: statePart,
+                metaMatchStrategy: 'Rejected (Admin Gateway Mismatch)'
+            };
         }
-      }
 
-      if (isMatch) allMatches.push({ row, strat });
-    }
-
-    if (allMatches.length > 0) {
-      let bestMatch = allMatches[0];
-      for (let m = 1; m < allMatches.length; m++) {
-        if (allMatches[m].row.rateFloat > bestMatch.row.rateFloat) {
-          bestMatch = allMatches[m];
+        // ==========================================
+        // 🟡 STEP 2: FORMAT VALIDATION
+        // ==========================================
+        const commaCount = (rawLine.match(/,/g) || []).length;
+        const isValidFormat = (commaCount === 1 && parts.length === 2 && parts[0].length > 0 && parts[1].length > 0 && !rawLine.includes('.'));
+        if (!isValidFormat) {
+            return { ...input, city: '-', state: '-', status: 'Invalid Format', rate: '-', metaMatchStrategy: 'Invalid Format' };
         }
-      }
-      return {
-        ...input,
-        status: 'Found',
-        rate: bestMatch.row.rateStr,
-        city: cityPart,
-        state: statePart,
-        metaMatchStrategy: bestMatch.strat
-      };
-    }
 
-    return { ...input, status: 'Not Found', rate: '', city: cityPart, state: statePart };
-  });
+        const inputStateAbbr = getStateAbbr(statePart);
+        const targetList = stateToCitiesMap[inputStateAbbr] || [];
+
+        // ==========================================
+        // 🔵 STEP 3: NORMAL FLOW (NO ADMIN WORDS)
+        // ==========================================
+        const inputVariations = getAllVariations(cityPart);
+        let allMatches = [];
+
+        for (const row of targetList) {
+            const rowOrig = String(row.originalCity || '');
+            
+            // 🔥 MUTUAL EXCLUSION: Skip database rows containing admin words 
+            // to prevent plain inputs from incorrectly matching county records.
+            if (isSpecialAdminWord(rowOrig)) {
+                continue; 
+            }
+
+            const rowVariations = getAllVariations(rowOrig);
+            let isMatch = false;
+            let strat = '';
+
+            for (const iVar of inputVariations) {
+                for (const rVar of rowVariations) {
+                    if (iVar.exactComp === rVar.exactComp && iVar.exactComp !== '') {
+                        isMatch = true; strat = 'Exact'; break;
+                    }
+                    if ((iVar.baseComp === rVar.cleanComp || iVar.cleanComp === rVar.baseComp) && iVar.baseComp !== '') {
+                        isMatch = true; strat = 'Prefix Match'; break;
+                    }
+                    if (iVar.cleanComp === rVar.cleanComp && iVar.cleanComp !== '') {
+                        isMatch = true; strat = 'Clean Match'; break;
+                    }
+                }
+                if (isMatch) break;
+            }
+
+            // Alias Matching (with same safety)
+            if (!isMatch && row.originalAlias) {
+                if (!isSpecialAdminWord(String(row.originalAlias))) {
+                    const aliasVariations = getAllVariations(String(row.originalAlias));
+                    for (const iVar of inputVariations) {
+                        for (const aVar of aliasVariations) {
+                            if (iVar.exactComp === aVar.exactComp && iVar.exactComp !== '') {
+                                isMatch = true; strat = 'Exact (Alias)'; break;
+                            }
+                            if ((iVar.baseComp === aVar.cleanComp || iVar.cleanComp === aVar.baseComp) && iVar.baseComp !== '') {
+                                isMatch = true; strat = 'Prefix Match (Alias)'; break;
+                            }
+                            if (iVar.cleanComp === aVar.cleanComp && iVar.cleanComp !== '') {
+                                isMatch = true; strat = 'Clean Match (Alias)'; break;
+                            }
+                        }
+                        if (isMatch) break;
+                    }
+                }
+            }
+
+            if (isMatch) allMatches.push({ row, strat });
+        }
+
+        if (allMatches.length > 0) {
+            let bestMatch = allMatches[0];
+            for (let m = 1; m < allMatches.length; m++) {
+                if (allMatches[m].row.rateFloat > bestMatch.row.rateFloat) {
+                    bestMatch = allMatches[m];
+                }
+            }
+            return {
+                ...input,
+                status: 'Found',
+                rate: bestMatch.row.rateStr,
+                city: cityPart,
+                state: statePart,
+                metaMatchStrategy: bestMatch.strat
+            };
+        }
+
+        return { ...input, status: 'Not Found', rate: '', city: cityPart, state: statePart };
+    });
 }
 
 export function parseRawInput(rawString) {
-  if (!rawString) return [];
-  return rawString.split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
-    .map(line => ({
-       id: Math.random().toString(36).substring(2, 9),
-       raw: line
-    }));
+    if (!rawString) return [];
+    return rawString.split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .map(line => ({
+           id: Math.random().toString(36).substring(2, 9),
+           raw: line
+        }));
 }
