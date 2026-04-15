@@ -77,3 +77,31 @@ export function getStateAbbr(str) {
   const norm = normalizeState(str);
   return norm; 
 }
+
+export function getStateFullName(str) {
+  if (!str) return '';
+  const normalized = str.toLowerCase().trim();
+  let fullName = STATE_MAP[normalized] || normalized;
+  // If it was just passing "ohio", we might get "oh" if we used normalizeState.
+  // Wait, if it's already "oh" (abbreviation), STATE_MAP gives "ohio".
+  // If it's already "ohio", STATE_MAP doesn't have it, so we fallback to "ohio".
+  
+  // Let's accurately parse it:
+  if (STATE_MAP[normalized]) {
+    fullName = STATE_MAP[normalized];
+  } else {
+     // Check if it's already a full name
+     let found = false;
+     for (const [abbr, full] of Object.entries(STATE_MAP)) {
+       if (normalized === full) {
+         fullName = full;
+         found = true;
+         break;
+       }
+     }
+     if (!found) fullName = normalized;
+  }
+  
+  // Capitalize first letters
+  return fullName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}

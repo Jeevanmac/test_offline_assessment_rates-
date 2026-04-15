@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, Download, Copy, AlertCircle, CheckCircle } from 'lucide-react';
+import { Search, Filter, Download, Copy, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { getStateFullName } from '../utils/normalize';
 
 export default function ResultsTable({ results }) {
   const [filter, setFilter] = useState('All');
@@ -42,6 +43,12 @@ export default function ResultsTable({ results }) {
   const handleCopy = (row) => {
     const text = `${row.city}\t${row.state}\t${row.status}\t${row.rate}`;
     navigator.clipboard.writeText(text);
+  };
+
+  const handleOnlineSearch = (row) => {
+    const stateFullName = getStateFullName(row.state);
+    const query = encodeURIComponent(`${row.city} ${stateFullName}`);
+    window.open(`https://www.google.com/search?q=${query}`, '_blank');
   };
 
   if (results.length === 0) return null;
@@ -176,7 +183,16 @@ export default function ResultsTable({ results }) {
                     )}
                   </td>
                 <td style={{ padding: '0.75rem 1.5rem', fontWeight: 600 }}>{row.rate || '-'}</td>
-                <td style={{ padding: '0.75rem 1.5rem', textAlign: 'right' }}>
+                <td style={{ padding: '0.75rem 1.5rem', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                  {row.status === 'Not Found' && (
+                    <button 
+                      onClick={() => handleOnlineSearch(row)}
+                      title="Search Online"
+                      style={{ background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 500 }}
+                    >
+                      <ExternalLink size={14} /> Online
+                    </button>
+                  )}
                   <button 
                     onClick={() => handleCopy(row)}
                     title="Copy Row"
