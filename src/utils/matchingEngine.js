@@ -87,23 +87,31 @@ export function matchCities(inputData, excelDataRows) {
         const statePart = parts[1] || '';
 
         // ==========================================
-        // 🔴 STRICT BLOCK RULE (STEP 1)
+        // 🔴 STRICT BLOCK RULE (FINAL - BULLETPROOF)
         // ==========================================
-        const cityLowerCompressed = cityPart.toLowerCase().replace(/\s+/g, '');
-        const isBlocked = 
-            cityLowerCompressed.includes('county') || 
-            cityLowerCompressed.includes('borough') || 
-            cityLowerCompressed.includes('parish');
 
+        // Normalize city by removing ALL separators
+        const normalizedCity = (cityPart || '')
+          .toLowerCase()
+          .replace(/[\s\t\n\r._-]+/g, ''); // remove spaces, dots, hyphens, underscores
+
+        // Strict block check
+        const isBlocked =
+          normalizedCity.includes('county') ||
+          normalizedCity.includes('borough') ||
+          normalizedCity.includes('parish');
+
+        // If blocked → STOP immediately (DO NOT MATCH)
         if (isBlocked) {
-            return {
-                ...input,
-                status: 'Not Found',
-                rate: '-',
-                city: cityPart || '-',
-                state: statePart || '-',
-                isBlocked: true
-            };
+          return {
+            ...input,
+            status: 'Not Found',
+            rate: '-',
+            city: cityPart || '-',
+            state: statePart || '-',
+            metaMatchStrategy: 'Strict Block (County/Borough/Parish)',
+            isBlocked: true
+          };
         }
 
         // ==========================================
@@ -234,7 +242,7 @@ export function matchCities(inputData, excelDataRows) {
         };
     });
 }
-}
+
 
 /**
  * Parses raw text area string into an array of input objects
