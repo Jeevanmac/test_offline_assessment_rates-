@@ -83,12 +83,38 @@ export function matchCities(inputData, excelDataRows) {
         const commaCount = (raw.match(/,/g) || []).length;
         const parts = raw.split(',').map(s => s.trim());
         
+        const cityPart = parts[0] || '';
+        const statePart = parts[1] || '';
+
+        // ==========================================
+        // 🔴 STRICT BLOCK RULE (STEP 1)
+        // ==========================================
+        const cityLowerCompressed = cityPart.toLowerCase().replace(/\s+/g, '');
+        const isBlocked = 
+            cityLowerCompressed.includes('county') || 
+            cityLowerCompressed.includes('borough') || 
+            cityLowerCompressed.includes('parish');
+
+        if (isBlocked) {
+            return {
+                ...input,
+                status: 'Not Found',
+                rate: '-',
+                city: cityPart || '-',
+                state: statePart || '-',
+                isBlocked: true
+            };
+        }
+
+        // ==========================================
+        // 🔴 FORMAT VALIDATION (STEP 2)
+        // ==========================================
         const isValidFormat = 
             commaCount === 1 && 
             parts.length === 2 && 
             parts[0].length > 0 && 
             parts[1].length > 0 && 
-            !raw.includes('.'); // "Does NOT contain "." instead of comma" - interpreted as a strict rule from user
+            !raw.includes('.');
 
         if (!isValidFormat) {
             return {
@@ -101,22 +127,11 @@ export function matchCities(inputData, excelDataRows) {
             };
         }
 
-        const cityPart = parts[0];
-        const statePart = parts[1];
-
-        // Strict Rejection for county / borough / parish
-        const cityLowerCompressed = cityPart.toLowerCase().replace(/\s+/g, '');
-        if (cityLowerCompressed.includes('county') || cityLowerCompressed.includes('borough') || cityLowerCompressed.includes('parish')) {
-            return {
-                ...input,
-                status: 'Not Found',
-                rate: '-',
-                city: cityPart,
-                state: statePart
-            };
-        }
-
         const inputStateAbbr = getStateAbbr(statePart);
+
+        // ==========================================
+        // 🔴 MATCHING ENGINE (STEP 3)
+        // ==========================================
 
         // If state has no entries
         if (!stateToCitiesMap[inputStateAbbr]) {
