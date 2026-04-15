@@ -26,16 +26,30 @@ const STATE_MAP = {
 export function normalizeCity(str) {
   if (!str) return '';
 
-  let normalized = str.toLowerCase();
+  // 1. Lowercase and replace dots with spaces
+  let normalized = str.toLowerCase().replace(/\./g, ' ');
 
-  // Only replace hyphens → space
+  // 2. Abbreviation normalization (st -> saint, ft -> fort, mt -> mount)
+  const abbrMap = {
+    st: 'saint',
+    ft: 'fort',
+    mt: 'mount'
+  };
+
+  for (const [abbr, full] of Object.entries(abbrMap)) {
+    const regex = new RegExp(`\\b${abbr}\\b`, 'g');
+    normalized = normalized.replace(regex, full);
+  }
+
+  // 3. Replace hyphens with space
   normalized = normalized.replace(/-/g, ' ');
 
-  // normalize spacing
+  // 4. normalize spacing
   let tokens = normalized.split(/\s+/).filter(Boolean);
 
   return tokens.join(' ');
 }
+
 
 export function compressCity(str) {
   if (!str) return '';

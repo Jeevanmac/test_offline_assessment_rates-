@@ -41,8 +41,8 @@ function getAllVariations(cityStr) {
   parts.forEach(part => {
     if (!part) return;
     
-    // Normalization rules: lowercase, replace hyphen
-    let raw = part.toLowerCase().replace(/-/g, ' ');
+    // Normalization rules: lowercase, dots, abbreviations, hyphens
+    let raw = normalizeCity(part);
     let compExact = raw.replace(/\s+/g, '');
     
     let cleanTokens = raw.split(/\s+/).filter(Boolean);
@@ -136,8 +136,10 @@ export function matchCities(inputData, excelDataRows) {
         // ==========================================
         // 🟡 STEP 2: FORMAT VALIDATION
         // ==========================================
+        const cleanCity = normalizeCity(cityPart);
         const commaCount = (rawLine.match(/,/g) || []).length;
-        const isValidFormat = (commaCount === 1 && parts.length === 2 && parts[0].length > 0 && parts[1].length > 0 && !rawLine.includes('.'));
+        const isValidFormat = (commaCount === 1 && parts.length === 2 && cleanCity.length > 0 && parts[1].length > 0);
+        
         if (!isValidFormat) {
             return { ...input, city: '-', state: '-', status: 'Invalid Format', rate: '-', metaMatchStrategy: 'Invalid Format' };
         }
@@ -148,7 +150,7 @@ export function matchCities(inputData, excelDataRows) {
         // ==========================================
         // 🔵 STEP 3: NORMAL FLOW (NO ADMIN WORDS)
         // ==========================================
-        const inputVariations = getAllVariations(cityPart);
+        const inputVariations = getAllVariations(cleanCity);
         let allMatches = [];
 
         for (const row of targetList) {
