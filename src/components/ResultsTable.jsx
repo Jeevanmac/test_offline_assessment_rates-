@@ -145,6 +145,7 @@ export default function ResultsTable({ results }) {
               <th style={{ padding: '0.75rem 1.5rem', fontWeight: 500, color: 'var(--text-muted)' }}>State</th>
               <th style={{ padding: '0.75rem 1.5rem', fontWeight: 500, color: 'var(--text-muted)' }}>Status</th>
               <th style={{ padding: '0.75rem 1.5rem', fontWeight: 500, color: 'var(--text-muted)' }}>Rate Reduction</th>
+              <th style={{ padding: '0.75rem 1.5rem', fontWeight: 500, color: 'var(--text-muted)', textAlign: 'center' }}>Online Search</th>
               <th style={{ padding: '0.75rem 1.5rem', fontWeight: 500, color: 'var(--text-muted)', textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
@@ -183,16 +184,22 @@ export default function ResultsTable({ results }) {
                     )}
                   </td>
                 <td style={{ padding: '0.75rem 1.5rem', fontWeight: 600 }}>{row.rate || '-'}</td>
-                <td style={{ padding: '0.75rem 1.5rem', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                <td style={{ padding: '0.75rem 1.5rem', textAlign: 'center' }}>
                   {row.status === 'Not Found' && (
-                    <button 
-                      onClick={() => handleOnlineSearch(row)}
-                      title="Search Online"
-                      style={{ background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 500 }}
-                    >
-                      <ExternalLink size={14} /> Online
-                    </button>
+                     <div style={{ display: 'flex', justifyContent: 'center' }}>
+                      <button 
+                        onClick={() => handleOnlineSearch(row)}
+                        title="Search Online for missing record"
+                        style={{ background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', padding: '0.35rem 0.75rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 500, transition: 'background 0.2s', whiteSpace: 'nowrap' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-input)'}
+                      >
+                        Search <ExternalLink size={14} />
+                      </button>
+                    </div>
                   )}
+                </td>
+                <td style={{ padding: '0.75rem 1.5rem', textAlign: 'right' }}>
                   <button 
                     onClick={() => handleCopy(row)}
                     title="Copy Row"
@@ -205,7 +212,7 @@ export default function ResultsTable({ results }) {
             ))}
             {filteredResults.length === 0 && (
               <tr>
-                <td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                   No results match the current filters.
                 </td>
               </tr>

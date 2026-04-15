@@ -105,8 +105,8 @@ export function matchCities(inputData, excelDataRows) {
         const statePart = parts[1];
 
         // Strict Rejection for county / borough / parish
-        const cityLower = cityPart.toLowerCase();
-        if (cityLower.includes('county') || cityLower.includes('borough') || cityLower.includes('parish')) {
+        const cityLowerCompressed = cityPart.toLowerCase().replace(/\s+/g, '');
+        if (cityLowerCompressed.includes('county') || cityLowerCompressed.includes('borough') || cityLowerCompressed.includes('parish')) {
             return {
                 ...input,
                 status: 'Not Found',
