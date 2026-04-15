@@ -101,7 +101,7 @@ export default function ResultsTable({ results }) {
               <option value="All">All Statuses</option>
               <option value="Found">Found</option>
               <option value="Not Found">Not Found</option>
-              <option value="Invalid">Invalid</option>
+              <option value="Invalid Format">Invalid</option>
             </select>
 
             <button 
@@ -142,32 +142,39 @@ export default function ResultsTable({ results }) {
             </tr>
           </thead>
           <tbody>
-            {filteredResults.map((row, idx) => (
-              <tr 
-                key={row.id || idx}
-                style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.2s' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <td style={{ padding: '0.75rem 1.5rem' }}>{row.city || '-'}</td>
-                <td style={{ padding: '0.75rem 1.5rem' }}>{row.state || '-'}</td>
-                <td style={{ padding: '0.75rem 1.5rem' }}>
-                  {row.status === 'Found' && (
-                    <span style={{ color: 'var(--accent-green)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(16, 185, 129, 0.1)', padding: '0.1rem 0.5rem', borderRadius: '1rem' }}>
-                      <CheckCircle size={14} /> Found {row.metaMatchStrategy && <span style={{fontSize: '0.7rem', opacity: 0.7}}>({row.metaMatchStrategy})</span>}
-                    </span>
-                  )}
-                  {row.status === 'Not Found' && (
-                    <span style={{ color: 'var(--accent-red)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(239, 68, 68, 0.1)', padding: '0.1rem 0.5rem', borderRadius: '1rem' }}>
-                      <AlertCircle size={14} /> Not Found
-                    </span>
-                  )}
-                  {row.status === 'Invalid' && (
-                    <span style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'var(--bg-input)', padding: '0.1rem 0.5rem', borderRadius: '1rem' }}>
-                      Invalid Format
-                    </span>
-                  )}
-                </td>
+            {filteredResults.map((row, idx) => {
+              const isInvalidFormat = row.status === 'Invalid Format';
+              return (
+                <tr 
+                  key={row.id || idx}
+                  style={{ 
+                    borderBottom: '1px solid var(--border-color)', 
+                    transition: 'background 0.2s',
+                    backgroundColor: isInvalidFormat ? '#fff3cd' : 'transparent',
+                    color: isInvalidFormat ? '#856404' : 'inherit'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = isInvalidFormat ? '#ffeeba' : 'var(--bg-input)'}
+                  onMouseLeave={e => e.currentTarget.style.background = isInvalidFormat ? '#fff3cd' : 'transparent'}
+                >
+                  <td style={{ padding: '0.75rem 1.5rem' }}>{row.city || '-'}</td>
+                  <td style={{ padding: '0.75rem 1.5rem' }}>{row.state || '-'}</td>
+                  <td style={{ padding: '0.75rem 1.5rem' }}>
+                    {row.status === 'Found' && (
+                      <span style={{ color: 'var(--accent-green)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(16, 185, 129, 0.1)', padding: '0.1rem 0.5rem', borderRadius: '1rem' }}>
+                        <CheckCircle size={14} /> Found {row.metaMatchStrategy && <span style={{fontSize: '0.7rem', opacity: 0.7}}>({row.metaMatchStrategy})</span>}
+                      </span>
+                    )}
+                    {row.status === 'Not Found' && (
+                      <span style={{ color: 'var(--accent-red)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(239, 68, 68, 0.1)', padding: '0.1rem 0.5rem', borderRadius: '1rem' }}>
+                        <AlertCircle size={14} /> Not Found
+                      </span>
+                    )}
+                    {isInvalidFormat && (
+                      <span style={{ color: '#856404', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(133, 100, 4, 0.1)', padding: '0.1rem 0.5rem', borderRadius: '1rem' }}>
+                        <AlertCircle size={14} /> Invalid Format
+                      </span>
+                    )}
+                  </td>
                 <td style={{ padding: '0.75rem 1.5rem', fontWeight: 600 }}>{row.rate || '-'}</td>
                 <td style={{ padding: '0.75rem 1.5rem', textAlign: 'right' }}>
                   <button 

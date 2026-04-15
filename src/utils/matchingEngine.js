@@ -71,124 +71,142 @@ export function matchCities(inputData, excelDataRows) {
     stateToCitiesMap[row.stateAbbr].push(row);
   });
 
-  // 2. Process inputs
-  return inputData.map(input => {
-    // Basic formatting validation (missing target parts)
-    const parts = input.raw.split(',').map(s => s.trim());
-    if (parts.length < 2 || !parts[0] || !parts[1]) {
-      return {
-        ...input,
-        status: 'Invalid',
-        rate: '',
-        metaMatchStrategy: 'Missing comma or parts'
-      };
-    }
-
-    const cityPart = parts[0];
-    const statePart = parts[1];
-
-    const inputStateAbbr = getStateAbbr(statePart);
-
-    // If state has no entries
-    if (!stateToCitiesMap[inputStateAbbr]) {
-      return {
-        ...input,
-        status: 'Not Found',
-        rate: '',
-        city: cityPart,
-        state: statePart
-      };
-    }
-
-    const targetList = stateToCitiesMap[inputStateAbbr];
-    const inputVariations = getAllVariations(cityPart);
-    let allMatches = [];
-
-    for (let i = 0; i < targetList.length; i++) {
-        const row = targetList[i];
-        const rowVariations = getAllVariations(String(row.originalCity || ''));
+    // 2. Process inputs
+    return inputData.map(input => {
+        const raw = input.raw || '';
         
-        let isMatch = false;
-        let strat = '';
+        // Validation Logic:
+        // 1. Contains exactly ONE comma
+        // 2. Has non-empty city and state
+        // 3. Does NOT contain "." instead of comma (though split by "," handles some of this, we check for dots representing commas)
+        
+        const commaCount = (raw.match(/,/g) || []).length;
+        const parts = raw.split(',').map(s => s.trim());
+        
+        const isValidFormat = 
+            commaCount === 1 && 
+            parts.length === 2 && 
+            parts[0].length > 0 && 
+            parts[1].length > 0 && 
+            !raw.includes('.'); // "Does NOT contain "." instead of comma" - interpreted as a strict rule from user
 
-        for (const iVar of inputVariations) {
-            for (const rVar of rowVariations) {
-                // 1. Exact Match
-                if (iVar.exactComp === rVar.exactComp && iVar.exactComp !== '') {
-                    isMatch = true; strat = 'Exact'; break;
-                }
-                
-                // 3. Prefix Match
-                // "Remove prefix and compare again"
-                if ((iVar.baseComp === rVar.cleanComp || iVar.cleanComp === rVar.baseComp) && iVar.baseComp !== '') {
-                    isMatch = true; strat = 'Prefix Match'; break;
-                }
-
-                // 4. Clean Match
-                if (iVar.cleanComp === rVar.cleanComp && iVar.cleanComp !== '') {
-                    isMatch = true; strat = 'Clean Match'; break;
-                }
-            }
-            if (isMatch) break;
+        if (!isValidFormat) {
+            return {
+                ...input,
+                city: '-',
+                state: '-',
+                status: 'Invalid Format',
+                rate: '-',
+                metaMatchStrategy: 'Invalid Format'
+            };
         }
 
-        // Handle alias if it didn't match the primary city
-        if (!isMatch && row.originalAlias) {
-            const aliasVariations = getAllVariations(String(row.originalAlias));
+        const cityPart = parts[0];
+        const statePart = parts[1];
+
+        const inputStateAbbr = getStateAbbr(statePart);
+
+        // If state has no entries
+        if (!stateToCitiesMap[inputStateAbbr]) {
+            return {
+                ...input,
+                status: 'Not Found',
+                rate: '',
+                city: cityPart,
+                state: statePart
+            };
+        }
+
+        const targetList = stateToCitiesMap[inputStateAbbr];
+        const inputVariations = getAllVariations(cityPart);
+        let allMatches = [];
+
+        for (let i = 0; i < targetList.length; i++) {
+            const row = targetList[i];
+            const rowVariations = getAllVariations(String(row.originalCity || ''));
+            
+            let isMatch = false;
+            let strat = '';
+
             for (const iVar of inputVariations) {
-                for (const aVar of aliasVariations) {
-                    if (iVar.exactComp === aVar.exactComp && iVar.exactComp !== '') {
-                        isMatch = true; strat = 'Exact (Alias)'; break;
+                for (const rVar of rowVariations) {
+                    // 1. Exact Match
+                    if (iVar.exactComp === rVar.exactComp && iVar.exactComp !== '') {
+                        isMatch = true; strat = 'Exact'; break;
                     }
-                    if ((iVar.baseComp === aVar.cleanComp || iVar.cleanComp === aVar.baseComp) && iVar.baseComp !== '') {
-                        isMatch = true; strat = 'Prefix Match (Alias)'; break;
+                    
+                    // 3. Prefix Match
+                    // "Remove prefix and compare again"
+                    if ((iVar.baseComp === rVar.cleanComp || iVar.cleanComp === rVar.baseComp) && iVar.baseComp !== '') {
+                        isMatch = true; strat = 'Prefix Match'; break;
                     }
-                    if (iVar.cleanComp === aVar.cleanComp && iVar.cleanComp !== '') {
-                        isMatch = true; strat = 'Clean Match (Alias)'; break;
+
+                    // 4. Clean Match
+                    if (iVar.cleanComp === rVar.cleanComp && iVar.cleanComp !== '') {
+                        isMatch = true; strat = 'Clean Match'; break;
                     }
                 }
                 if (isMatch) break;
             }
-        } else if (!isMatch && row.aliasCompressed) {
-            // fallback if we just have aliasCompressed without originalAlias
-            for (const iVar of inputVariations) {
-               if (iVar.cleanComp === row.aliasCompressed && iVar.cleanComp !== '') {
-                   isMatch = true; strat = 'Clean Match (Alias)'; break;
-               }
+
+            // Handle alias if it didn't match the primary city
+            if (!isMatch && row.originalAlias) {
+                const aliasVariations = getAllVariations(String(row.originalAlias));
+                for (const iVar of inputVariations) {
+                    for (const aVar of aliasVariations) {
+                        if (iVar.exactComp === aVar.exactComp && iVar.exactComp !== '') {
+                            isMatch = true; strat = 'Exact (Alias)'; break;
+                        }
+                        if ((iVar.baseComp === aVar.cleanComp || iVar.cleanComp === aVar.baseComp) && iVar.baseComp !== '') {
+                            isMatch = true; strat = 'Prefix Match (Alias)'; break;
+                        }
+                        if (iVar.cleanComp === aVar.cleanComp && iVar.cleanComp !== '') {
+                            isMatch = true; strat = 'Clean Match (Alias)'; break;
+                        }
+                    }
+                    if (isMatch) break;
+                }
+            } else if (!isMatch && row.aliasCompressed) {
+                // fallback if we just have aliasCompressed without originalAlias
+                for (const iVar of inputVariations) {
+                    if (iVar.cleanComp === row.aliasCompressed && iVar.cleanComp !== '') {
+                        isMatch = true; strat = 'Clean Match (Alias)'; break;
+                    }
+                }
+            }
+
+            if (isMatch) {
+                allMatches.push({ row, strat });
             }
         }
 
-        if (isMatch) {
-            allMatches.push({ row, strat });
-        }
-    }
+        if (allMatches.length > 0) {
+            let bestMatch = allMatches[0];
+            for (let m = 1; m < allMatches.length; m++) {
+                if (allMatches[m].row.rateFloat > bestMatch.row.rateFloat) {
+                    bestMatch = allMatches[m];
+                }
+            }
 
-    if (allMatches.length > 0) {
-        let bestMatch = allMatches[0];
-        for (let m = 1; m < allMatches.length; m++) {
-           if (allMatches[m].row.rateFloat > bestMatch.row.rateFloat) {
-               bestMatch = allMatches[m];
-           }
+            return {
+                ...input,
+                status: 'Found',
+                rate: bestMatch.row.rateStr,
+                city: cityPart,
+                state: statePart,
+                metaMatchStrategy: bestMatch.strat
+            };
         }
 
         return {
             ...input,
-            status: 'Found',
-            rate: bestMatch.row.rateStr,
+            status: 'Not Found',
+            rate: '',
             city: cityPart,
-            state: statePart,
-            metaMatchStrategy: bestMatch.strat
+            state: statePart
         };
-    }
-
-    return {
-      ...input,
-      status: 'Not Found',
-      rate: '',
-      city: cityPart,
-      state: statePart
-    };
-  });
+    });
+}
 }
 
 /**
