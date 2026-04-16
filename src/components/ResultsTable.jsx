@@ -40,9 +40,15 @@ export default function ResultsTable({ results }) {
     XLSX.writeFile(workbook, 'City_Assessment_Results.xlsx');
   };
 
-  const handleCopy = (row) => {
-    const text = `${row.city}\t${row.state}\t${row.status}\t${row.rate}`;
-    navigator.clipboard.writeText(text);
+  const [copiedId, setCopiedId] = useState(null);
+
+  const handleCopy = (row, uniqueId) => {
+    if (!row.rate || row.rate === '-') return;
+    
+    navigator.clipboard.writeText(row.rate).then(() => {
+      setCopiedId(uniqueId);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
   };
 
   const handleOnlineSearch = (row) => {
@@ -201,11 +207,18 @@ export default function ResultsTable({ results }) {
                 </td>
                 <td style={{ padding: '0.75rem 1.5rem', textAlign: 'right' }}>
                   <button 
-                    onClick={() => handleCopy(row)}
-                    title="Copy Row"
-                    style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.25rem' }}
+                    onClick={() => handleCopy(row, row.id || idx)}
+                    title={copiedId === (row.id || idx) ? "Copied!" : "Copy Rate"}
+                    style={{ 
+                      background: 'transparent', 
+                      border: 'none', 
+                      color: copiedId === (row.id || idx) ? 'var(--accent-green)' : 'var(--text-muted)', 
+                      cursor: 'pointer', 
+                      padding: '0.25rem',
+                      transition: 'all 0.2s'
+                    }}
                   >
-                    <Copy size={16} />
+                    {copiedId === (row.id || idx) ? <CheckCircle size={16} /> : <Copy size={16} />}
                   </button>
                 </td>
               </tr>
